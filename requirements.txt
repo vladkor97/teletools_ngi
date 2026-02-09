@@ -1,0 +1,9 @@
+beautifulsoup4
+pytest
+pytest-asyncio
+python-dotenv
+google-generativeai
+fastapi
+uvicorn
+python-multipart
+httpx
