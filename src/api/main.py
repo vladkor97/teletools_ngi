@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.api.routes import parser, formatter, telegram, ai_search, posts, toolkit, missed
+from src.api.routes import parser, formatter, telegram, ai_search, posts, toolkit, missed, digest, summary, sync
 
 
 @asynccontextmanager
@@ -30,6 +30,9 @@ app.include_router(ai_search.router, prefix="/api", tags=["AI Search"])
 app.include_router(posts.router, prefix="/api", tags=["Posts"])
 app.include_router(toolkit.router, prefix="/api", tags=["Toolkit"])
 app.include_router(missed.router, prefix="/api", tags=["Missed"])
+app.include_router(digest.router, prefix="/api", tags=["Digest"])
+app.include_router(summary.router, prefix="/api", tags=["Summary"])
+app.include_router(sync.router, prefix="/api", tags=["Sync"])
 
 
 @app.get("/health")

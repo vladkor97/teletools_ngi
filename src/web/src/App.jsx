@@ -5,12 +5,14 @@ import AISearch from './components/AISearch';
 import ViewPosts from './components/ViewPosts';
 import AuthorToolkit from './components/AuthorToolkit';
 import MissedPosts from './components/MissedPosts';
+import DigestBuilder from './components/DigestBuilder';
+import CallSummary from './components/CallSummary';
 import {
   Copy, Check, ExternalLink, Sparkles, ArrowRight,
   MessageSquare, Key, Settings2, Terminal, Bot, FileText,
   ChevronRight, Download, Paintbrush, Search as SearchIcon,
   LayoutGrid, PenTool, Sparkles as SparklesIcon,
-  ChevronDown
+  ChevronDown, BookOpen, FileAudio
 } from 'lucide-react';
 
 const SYSTEM_PROMPT = `Ты — ассистент, который помогает находить релевантный контент из Telegram-канала.
@@ -133,16 +135,24 @@ const HowToUse = ({ onNavigate }) => {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <StepNumber n={1} />
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--accent-cyan)' }}>Парсинг канала</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--accent-cyan)' }}>Подключение канала</h3>
             </div>
             <ChevronDown size={20} style={{ transform: openSection === 'parser' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
           </div>
           {openSection === 'parser' && (
             <div style={{ padding: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-              <p style={{ ...text2, marginBottom: '0.75rem' }}>
-                Чтобы система узнала о контенте канала, нужно экспортировать историю сообщений.
+              <p style={{ ...text2, marginBottom: '0.75rem', fontWeight: '600', color: 'var(--accent-cyan)', fontSize: '0.88rem' }}>
+                🤖 Свой канал — автоматический режим
               </p>
-              <ul style={{ ...text2, listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <ul style={{ ...text2, listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1.25rem' }}>
+                <ListItem>Добавьте бота <b>администратором</b> в свой канал</ListItem>
+                <ListItem>Все новые посты будут автоматически сохраняться с <b>просмотрами</b>, <b>реакциями</b> и <b>пересылками</b></ListItem>
+                <ListItem>Статистика обновляется в реальном времени при редактировании и реакциях</ListItem>
+              </ul>
+              <p style={{ ...text2, marginBottom: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                📥 Чужой канал — ручной экспорт
+              </p>
+              <ul style={{ ...text2, listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 <ListItem>Откройте канал в <b>Telegram Desktop</b></ListItem>
                 <ListItem>Нажмите <b>•••</b> → <b>Export chat history</b></ListItem>
                 <ListItem>Формат: <b>HTML</b> (снимите галочки с фото/видео для скорости)</ListItem>
@@ -179,14 +189,68 @@ const HowToUse = ({ onNavigate }) => {
           )}
         </div>
 
-        {/* 3. Подборки */}
+        {/* 3. Дайджест */}
+        <div style={{ border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+          <div onClick={() => toggle('digest')} style={{
+            padding: '1rem 1.5rem', background: 'rgba(255,255,255,0.02)', cursor: 'pointer',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <StepNumber n={3} gradient="linear-gradient(135deg, #06b6d4, #3b82f6)" />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--accent-cyan)' }}>Дайджест</h3>
+            </div>
+            <ChevronDown size={20} style={{ transform: openSection === 'digest' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+          </div>
+          {openSection === 'digest' && (
+            <div style={{ padding: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <p style={{ ...text2, marginBottom: '0.75rem' }}>
+                Генерация дайджестов канала за выбранный период.
+              </p>
+              <ul style={{ ...text2, listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <ListItem>Выберите канал и период (пресеты или кастомные даты)</ListItem>
+                <ListItem>Система автоматически найдёт <b>прошлый дайджест</b> и подставит ссылку</ListItem>
+                <ListItem>Исключите ненужные посты чекбоксами</ListItem>
+                <ListItem>Два режима: <b>Сгенерировать через API</b> или <b>Копировать промпт</b> для AI Studio</ListItem>
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* 4. Саммари звонков */}
+        <div style={{ border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+          <div onClick={() => toggle('summary')} style={{
+            padding: '1rem 1.5rem', background: 'rgba(255,255,255,0.02)', cursor: 'pointer',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <StepNumber n={4} gradient="linear-gradient(135deg, #10b981, #14b8a6)" />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--accent-cyan)' }}>Саммари звонков</h3>
+            </div>
+            <ChevronDown size={20} style={{ transform: openSection === 'summary' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+          </div>
+          {openSection === 'summary' && (
+            <div style={{ padding: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <p style={{ ...text2, marginBottom: '0.75rem' }}>
+                Структурированные саммари из транскриптов звонков и встреч.
+              </p>
+              <ul style={{ ...text2, listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <ListItem>Вставьте текст транскрипта (MacWhisper, Zoom, Otter.ai)</ListItem>
+                <ListItem>Получите резюме: участники, решения, <b>action items</b>, инсайты</ListItem>
+                <ListItem>Два режима: <b>Через API</b> или <b>Копировать промпт</b></ListItem>
+                <ListItem>Отправьте результат себе в Telegram</ListItem>
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* 5. Подборки */}
         <div style={{ border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
           <div onClick={() => toggle('ai')} style={{
             padding: '1rem 1.5rem', background: 'rgba(255,255,255,0.02)', cursor: 'pointer',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <StepNumber n={3} gradient="linear-gradient(135deg, #06b6d4, #3b82f6)" />
+              <StepNumber n={5} gradient="linear-gradient(135deg, #f59e0b, #d97706)" />
               <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--accent-cyan)' }}>Подборки</h3>
             </div>
             <ChevronDown size={20} style={{ transform: openSection === 'ai' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
@@ -206,14 +270,14 @@ const HowToUse = ({ onNavigate }) => {
           )}
         </div>
 
-        {/* 4. Что пропустил */}
+        {/* 6. Что пропустил */}
         <div style={{ border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
           <div onClick={() => toggle('missed')} style={{
             padding: '1rem 1.5rem', background: 'rgba(255,255,255,0.02)', cursor: 'pointer',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <StepNumber n={4} gradient="linear-gradient(135deg, #f59e0b, #d97706)" />
+              <StepNumber n={6} gradient="linear-gradient(135deg, #ef4444, #f97316)" />
               <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--accent-cyan)' }}>Что пропустил</h3>
             </div>
             <ChevronDown size={20} style={{ transform: openSection === 'missed' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
@@ -232,14 +296,14 @@ const HowToUse = ({ onNavigate }) => {
           )}
         </div>
 
-        {/* 5. Форматтер */}
+        {/* 7. Форматтер */}
         <div style={{ border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
           <div onClick={() => toggle('formatter')} style={{
             padding: '1rem 1.5rem', background: 'rgba(255,255,255,0.02)', cursor: 'pointer',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <StepNumber n={5} gradient="linear-gradient(135deg, #6366f1, #8b5cf6)" />
+              <StepNumber n={7} gradient="linear-gradient(135deg, #6366f1, #8b5cf6)" />
               <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--accent-cyan)' }}>Форматтер</h3>
             </div>
             <ChevronDown size={20} style={{ transform: openSection === 'formatter' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
@@ -316,6 +380,8 @@ function App() {
     { key: 'parser', label: 'Парсер', icon: Download },
     { key: 'view-posts', label: 'Посты', icon: LayoutGrid },
     { key: 'toolkit', label: 'Тулкит Автора', icon: PenTool },
+    { key: 'digest', label: 'Дайджест', icon: BookOpen },
+    { key: 'summary', label: 'Саммари', icon: FileAudio },
     { key: 'missed', label: 'Что пропустил', icon: SparklesIcon },
     { key: 'ai', label: 'Подборки', icon: SearchIcon },
     { key: 'formatter', label: 'Форматтер', icon: Paintbrush },
@@ -325,6 +391,8 @@ function App() {
     'parser': 'Загрузка и обработка истории сообщений из Telegram.',
     'view-posts': 'Просмотр всех постов канала с сортировкой по дате и реакциям.',
     'toolkit': 'Инструменты для авторов: генерация новых идей на основе лучших постов.',
+    'digest': 'Генерация дайджестов за период. Через API или копирование промпта в AI Studio.',
+    'summary': 'Саммари звонков и встреч из транскриптов. Через API или копирование промпта.',
     'missed': 'Умный поиск пропущенного контента по вашим интересам.',
     'ai': 'AI-поиск и формирование подборок по базе знаний канала.',
     'formatter': 'Превращение Markdown-текста в красивый HTML пост для Telegram.',
@@ -367,6 +435,8 @@ function App() {
         {activeTab === 'parser' && <FileUpload />}
         {activeTab === 'view-posts' && <ViewPosts />}
         {activeTab === 'toolkit' && <AuthorToolkit />}
+        {activeTab === 'digest' && <DigestBuilder />}
+        {activeTab === 'summary' && <CallSummary />}
         {activeTab === 'missed' && <MissedPosts />}
         {activeTab === 'ai' && <AISearch />}
         {activeTab === 'formatter' && <MarkdownEditor />}

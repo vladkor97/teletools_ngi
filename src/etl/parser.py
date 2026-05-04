@@ -12,6 +12,8 @@ class Post:
     text: str
     date: str
     reactions: int = 0
+    views: int = 0
+    forwards: int = 0
 
 class TelegramExportParser:
     """Parses Telegram Desktop HTML export files."""

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowUp, ArrowDown, Eye, MessageCircle, Share2, Calendar } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, Eye, MessageCircle, Share2, Calendar, Bot, RefreshCw, Download, ArrowDownCircle } from 'lucide-react';
 
 const ViewPosts = () => {
     const [channels, setChannels] = useState([]);
@@ -13,6 +13,11 @@ const ViewPosts = () => {
     const [page, setPage] = useState(1);
     const limit = 20;
     const [previewPost, setPreviewPost] = useState(null);
+    const [botStatus, setBotStatus] = useState(null);
+    const [checkingBot, setCheckingBot] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+    const [syncResult, setSyncResult] = useState(null);
+    const [fetchingNew, setFetchingNew] = useState(false);
 
     useEffect(() => {
         fetch('/api/channels')
@@ -28,6 +33,56 @@ const ViewPosts = () => {
         if (!selectedChannel) return;
         fetchPosts();
     }, [selectedChannel, page, sortBy, order]);
+
+    // Проверяем статус бота при смене канала
+    useEffect(() => {
+        if (!selectedChannel) return;
+        checkBotStatus();
+    }, [selectedChannel]);
+
+    const checkBotStatus = async () => {
+        setCheckingBot(true);
+        try {
+            const r = await fetch(`/api/bot-status?channel=${selectedChannel}`);
+            const data = await r.json();
+            setBotStatus(data);
+        } catch { setBotStatus(null); }
+        finally { setCheckingBot(false); }
+    };
+
+    const syncStats = async () => {
+        setSyncing(true);
+        setSyncResult(null);
+        try {
+            const r = await fetch('/api/sync/stats', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel_name: selectedChannel }),
+            });
+            const data = await r.json();
+            setSyncResult(data);
+            if (data.ok) fetchPosts();
+        } catch (e) {
+            setSyncResult({ ok: false, error: e.message });
+        } finally { setSyncing(false); }
+    };
+
+    const fetchNewPostsData = async () => {
+        setFetchingNew(true);
+        setSyncResult(null);
+        try {
+            const r = await fetch('/api/sync/fetch-new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel_name: selectedChannel }),
+            });
+            const data = await r.json();
+            setSyncResult(data);
+            if (data.ok) fetchPosts();
+        } catch (e) {
+            setSyncResult({ ok: false, error: e.message });
+        } finally { setFetchingNew(false); }
+    };
 
     const fetchPosts = async () => {
         setLoading(true);
@@ -101,7 +156,87 @@ const ViewPosts = () => {
                 </div>
             </div>
 
+            {/* Статус бота */}
+            {botStatus && (
+                <>
+                <div style={{
+                    display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap',
+                    padding: '0.6rem 1rem', background: botStatus.is_admin ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)',
+                    borderRadius: 'var(--radius-sm)', border: `1px solid ${botStatus.is_admin ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)'}`,
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Bot size={14} style={{ color: botStatus.is_admin ? 'var(--accent-green)' : 'var(--text-muted)' }} />
+                        <span style={{ fontSize: '0.78rem', color: botStatus.is_admin ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                            {botStatus.is_admin
+                                ? `@${botStatus.bot_username} — админ`
+                                : botStatus.bot_username
+                                    ? `@${botStatus.bot_username} — не админ`
+                                    : 'Бот не настроен'
+                            }
+                        </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <div style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: botStatus.polling ? '#22c55e' : '#ef4444',
+                        }} />
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {botStatus.polling ? 'Polling активен' : 'Polling выключен'}
+                        </span>
+                    </div>
+                    {!botStatus.is_admin && botStatus.bot_username && (
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                            Добавьте @{botStatus.bot_username} админом для live-статистики
+                        </span>
+                    )}
+                    <button className="btn-ghost" onClick={checkBotStatus} disabled={checkingBot}
+                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <RefreshCw size={11} className={checkingBot ? 'spin' : ''} />
+                    </button>
+                    {botStatus.is_admin && (
+                        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+                            <button className="btn-ghost" onClick={fetchNewPostsData} disabled={fetchingNew || syncing}
+                                style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <ArrowDownCircle size={12} className={fetchingNew ? 'spin' : ''} />
+                                {fetchingNew ? 'Загрузка...' : 'Загрузить новые'}
+                            </button>
+                            <button className="btn" onClick={syncStats} disabled={syncing || fetchingNew}
+                                style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <Download size={12} className={syncing ? 'spin' : ''} />
+                                {syncing ? 'Синхронизация...' : 'Обновить стату'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+                {syncResult && (
+                    <div style={{
+                        padding: '0.4rem 1rem', fontSize: '0.75rem',
+                        color: syncResult.ok ? 'var(--accent-green)' : 'var(--error)',
+                        background: syncResult.ok ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+                        borderRadius: '0 0 var(--radius-sm) var(--radius-sm)',
+                        marginTop: '-0.25rem',
+                    }}>
+                        {syncResult.ok
+                            ? `✅ Операция успешна: ${syncResult.updated} постов обработано (всего: ${syncResult.total})`
+                            : `❌ ${syncResult.error}`
+                        }
+                    </div>
+                )}
+                </>
+            )}
+
             <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
+                {/* Подсказка если views пустые */}
+                {posts.length > 0 && posts.every(p => !p.views) && (
+                    <div style={{
+                        padding: '0.6rem 1rem', background: 'rgba(129,140,248,0.06)',
+                        borderBottom: '1px solid var(--glass-border)', fontSize: '0.78rem',
+                        color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    }}>
+                        <Eye size={13} style={{ color: 'var(--accent-purple)', flexShrink: 0 }} />
+                        <span>Просмотры и пересылки недоступны при импорте через HTML. Добавьте бота админом в канал для живой статистики.</span>
+                    </div>
+                )}
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                         <thead style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--glass-border)' }}>
@@ -109,29 +244,35 @@ const ViewPosts = () => {
                                 <th style={thStyle} onClick={() => handleSort('date')}>
                                     <div style={thContentStyle}><Calendar size={14} /> Дата {renderSortIcon('date')}</div>
                                 </th>
-                                <th style={{ ...thStyle, width: '50%' }}>Текст</th>
+                                <th style={{ ...thStyle, width: '40%' }}>Текст</th>
+                                <th style={thStyle} onClick={() => handleSort('views')}>
+                                    <div style={thContentStyle}><Eye size={14} /> 👁 {renderSortIcon('views')}</div>
+                                </th>
                                 <th style={thStyle} onClick={() => handleSort('reactions')}>
-                                    <div style={thContentStyle}><MessageCircle size={14} /> Реакции {renderSortIcon('reactions')}</div>
+                                    <div style={thContentStyle}><MessageCircle size={14} /> ❤️ {renderSortIcon('reactions')}</div>
+                                </th>
+                                <th style={thStyle} onClick={() => handleSort('forwards')}>
+                                    <div style={thContentStyle}><Share2 size={14} /> ↗️ {renderSortIcon('forwards')}</div>
                                 </th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                    <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                                         Загрузка...
                                     </td>
                                 </tr>
                             ) : posts.length === 0 ? (
                                 <tr>
-                                    <td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                    <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                                         Постов не найдено
                                     </td>
                                 </tr>
                             ) : (
                                 posts.map(post => (
                                     <tr key={post.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <td style={tdStyle}>{post.date}</td>
+                                        <td style={tdStyle}>{post.date?.split(' ')[0]}</td>
                                         <td style={tdStyle}>
                                             <div style={{
                                                 display: '-webkit-box',
@@ -148,7 +289,9 @@ const ViewPosts = () => {
                                                 <Eye size={12} /> Читать
                                             </button>
                                         </td>
-                                        <td style={tdStyle}><span style={{ color: '#818cf8' }}>{post.reactions}</span></td>
+                                        <td style={tdStyle}><span style={{ color: post.views ? 'var(--text-muted)' : 'rgba(255,255,255,0.15)' }}>{post.views || '—'}</span></td>
+                                        <td style={tdStyle}><span style={{ color: '#818cf8' }}>{post.reactions || 0}</span></td>
+                                        <td style={tdStyle}><span style={{ color: post.forwards ? 'var(--text-muted)' : 'rgba(255,255,255,0.15)' }}>{post.forwards || '—'}</span></td>
                                     </tr>
                                 ))
                             )}
@@ -189,8 +332,11 @@ const ViewPosts = () => {
                         <div style={{ padding: '1.5rem', overflowY: 'auto', whiteSpace: 'pre-wrap', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                             {previewPost.text}
                         </div>
-                        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--glass-border)', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                            Reactions: {previewPost.reactions}
+                        <div style={{ padding: '0.75rem 1.5rem', borderTop: '1px solid var(--glass-border)', color: 'var(--text-muted)', fontSize: '0.8rem', display: 'flex', gap: '1.5rem' }}>
+                            <span>👁 {previewPost.views || 0}</span>
+                            <span>❤️ {previewPost.reactions || 0}</span>
+                            <span>↗️ {previewPost.forwards || 0}</span>
+                            <a href={previewPost.url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)', marginLeft: 'auto' }}>Открыть в Telegram</a>
                         </div>
                     </div>
                 </div>

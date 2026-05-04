@@ -12,8 +12,9 @@ class Post(BaseModel):
     url: str
     text: str
     date: str
-    date: str
     reactions: int = 0
+    views: int = 0
+    forwards: int = 0
 
 class PostsResponse(BaseModel):
     total: int
@@ -22,7 +23,7 @@ class PostsResponse(BaseModel):
 @router.get("/posts", response_model=PostsResponse)
 async def get_posts(
     channel_name: str = Query(..., description="Name of the channel (e.g., 'NGI_ru')"),
-    sort_by: str = Query("date", enum=["date", "reactions"]),
+    sort_by: str = Query("date", enum=["date", "reactions", "views", "forwards"]),
     order: str = Query("desc", enum=["asc", "desc"]),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -57,14 +58,10 @@ async def get_posts(
     # Sort
     reverse = (order == "desc")
     if sort_by == "date":
-        # Date string format: "14.03.2019 06:30:44 UTC-05:00"
-        # Simple string sort might fail for some formats, but commonly DD.MM.YYYY works decently if uniform.
-        # Better: parse date. But these strings are tricky.
-        # However, the IDs are usually sequential with date. So sorting by ID is a good proxy for Date.
-        # Let's use ID for date sorting for robustness, assuming ID order == Date order.
+        # ID order == Date order — надёжный proxy для сортировки по дате
         posts_data.sort(key=lambda x: x["id"], reverse=reverse)
     else:
-        # reactions or views
+        # reactions, views, forwards
         posts_data.sort(key=lambda x: x.get(sort_by, 0), reverse=reverse)
         
     # Pagination

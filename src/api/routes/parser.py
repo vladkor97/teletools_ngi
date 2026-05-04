@@ -40,17 +40,56 @@ async def parse_messages(
         with open(messages_file, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Парсим
+        # Парсим новые данные из HTML
         parser = TelegramExportParser(messages_file, channel_link=channel_link)
-        posts = parser.parse()
+        html_posts = parser.parse()
 
-        # Сохраняем посты в JSON
+        # Мёрж: загружаем существующие данные (могут содержать bot-статистику)
+        existing_posts = []
+        if posts_file.exists():
+            try:
+                with open(posts_file, "r", encoding="utf-8") as f:
+                    existing_posts = json.load(f)
+            except (json.JSONDecodeError, Exception):
+                existing_posts = []
+
+        # Индексируем существующие посты по id
+        existing_by_id = {p.get("id"): p for p in existing_posts}
+
+        merged = []
+        html_ids = set()
+        for hp in html_posts:
+            pid = hp.get("id")
+            html_ids.add(pid)
+
+            if pid in existing_by_id:
+                old = existing_by_id[pid]
+                # Сохраняем bot-данные (views, forwards) если они ненулевые
+                hp["views"] = old.get("views", 0) or hp.get("views", 0)
+                hp["forwards"] = old.get("forwards", 0) or hp.get("forwards", 0)
+                # Реакции: берём максимум из HTML и bot (обе источника валидные)
+                hp["reactions"] = max(hp.get("reactions", 0), old.get("reactions", 0))
+            merged.append(hp)
+
+        # Добавляем посты от бота, которых нет в HTML (новые, после экспорта)
+        for old in existing_posts:
+            if old.get("id") not in html_ids:
+                merged.append(old)
+
+        # Сортируем по id
+        merged.sort(key=lambda x: x.get("id", 0))
+
+        # Сохраняем
         with open(posts_file, "w", encoding="utf-8") as f:
-            json.dump(posts, f, ensure_ascii=False, indent=2)
+            json.dump(merged, f, ensure_ascii=False, indent=2)
+
+        new_from_bot = len([p for p in merged if p.get("id") not in html_ids])
 
         return {
-            "message": "Successfully parsed messages",
-            "count": len(posts),
+            "message": "Successfully parsed and merged",
+            "count": len(merged),
+            "from_html": len(html_posts),
+            "from_bot": new_from_bot,
             "channel_name": channel_name,
         }
 
