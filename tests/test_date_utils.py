@@ -27,6 +27,17 @@ class TestParseTelegramDate:
         assert result is not None
         assert result.tzinfo == timezone.utc
 
+    def test_no_timezone_fallback(self):
+        result = parse_telegram_date("15.05.2026 12:00:09")
+        assert result is not None
+        assert result.year == 2026
+        assert result.month == 5
+        assert result.day == 15
+        assert result.hour == 12
+        assert result.minute == 0
+        assert result.second == 9
+        assert result.tzinfo == timezone.utc
+
     def test_empty_string(self):
         assert parse_telegram_date("") is None
 

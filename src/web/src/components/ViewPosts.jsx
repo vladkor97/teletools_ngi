@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowUp, ArrowDown, Eye, MessageCircle, Share2, Calendar, Bot, RefreshCw, Download, ArrowDownCircle } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, Eye, MessageCircle, Share2, Calendar, Bot, RefreshCw, Download, ArrowDownCircle, FileText, Copy, Check } from 'lucide-react';
 
 const ViewPosts = () => {
     const [channels, setChannels] = useState([]);
@@ -18,6 +18,48 @@ const ViewPosts = () => {
     const [syncing, setSyncing] = useState(false);
     const [syncResult, setSyncResult] = useState(null);
     const [fetchingNew, setFetchingNew] = useState(false);
+
+    // Состояния для просмотра JSON
+    const [showJsonModal, setShowJsonModal] = useState(false);
+    const [jsonLimit, setJsonLimit] = useState(20);
+    const [jsonContent, setJsonContent] = useState('');
+    const [loadingJson, setLoadingJson] = useState(false);
+    const [jsonCopied, setJsonCopied] = useState(false);
+
+    // Подгрузка JSON-контента при открытии модального окна или смене лимита/поиска
+    useEffect(() => {
+        if (!showJsonModal || !selectedChannel) return;
+
+        const fetchJsonData = async () => {
+            setLoadingJson(true);
+            try {
+                const query = new URLSearchParams({
+                    channel_name: selectedChannel,
+                    sort_by: sortBy,
+                    order: order,
+                    limit: jsonLimit === 'all' ? 5000 : jsonLimit,
+                    offset: 0,
+                });
+                if (search) query.append('search', search);
+
+                const r = await fetch(`/api/posts?${query.toString()}`);
+                const data = await r.json();
+                setJsonContent(JSON.stringify(data.posts || [], null, 2));
+            } catch (e) {
+                setJsonContent(`Ошибка загрузки JSON: ${e.message}`);
+            } finally {
+                setLoadingJson(false);
+            }
+        };
+
+        fetchJsonData();
+    }, [showJsonModal, selectedChannel, jsonLimit, search, sortBy, order]);
+
+    const handleCopyJson = () => {
+        navigator.clipboard.writeText(jsonContent);
+        setJsonCopied(true);
+        setTimeout(() => setJsonCopied(false), 2000);
+    };
 
     useEffect(() => {
         fetch('/api/channels')
@@ -150,6 +192,11 @@ const ViewPosts = () => {
                             <button className="btn" onClick={() => { setPage(1); fetchPosts(); }}
                                 style={{ padding: '0.55rem 1rem', width: 'auto' }}>
                                 <Search size={16} />
+                            </button>
+                            <button className="btn-ghost" onClick={() => setShowJsonModal(true)}
+                                style={{ padding: '0.55rem 1rem', width: 'auto', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <FileText size={16} />
+                                JSON
                             </button>
                         </div>
                     </div>
@@ -316,6 +363,85 @@ const ViewPosts = () => {
                     </div>
                 </div>
             </div>
+
+            {/* JSON Modal */}
+            {showJsonModal && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 100,
+                    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem'
+                }} onClick={() => setShowJsonModal(false)}>
+                    <div className="card" style={{ maxWidth: '800px', width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', padding: 0 }} onClick={e => e.stopPropagation()}>
+                        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <FileText size={16} style={{ color: 'var(--accent-cyan)' }} />
+                                Экспорт постов в JSON — @{selectedChannel}
+                            </h3>
+                            <button className="btn-ghost" onClick={() => setShowJsonModal(false)}>✕</button>
+                        </div>
+                        
+                        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Показать постов:</span>
+                                <select value={jsonLimit} onChange={e => setJsonLimit(e.target.value)}
+                                    className="input" style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem', width: 'auto', appearance: 'auto' }}>
+                                    <option value={20}>Последние 20</option>
+                                    <option value={50}>Последние 50</option>
+                                    <option value={100}>Последние 100</option>
+                                    <option value={500}>Последние 500</option>
+                                    <option value="all">Все посты (до 5000)</option>
+                                </select>
+                            </div>
+                            
+                            {search && (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                                    Поиск: "{search}"
+                                </span>
+                            )}
+                            
+                            <button className="btn" onClick={handleCopyJson} disabled={loadingJson}
+                                style={{ padding: '0.35rem 0.85rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.35rem', marginLeft: 'auto', width: 'auto' }}>
+                                {jsonCopied ? <Check size={13} /> : <Copy size={13} />}
+                                {jsonCopied ? 'Скопировано!' : 'Скопировать все'}
+                            </button>
+                        </div>
+
+                        <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                            {loadingJson ? (
+                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                                    Загрузка JSON...
+                                </div>
+                            ) : (
+                                <textarea
+                                    readOnly
+                                    value={jsonContent}
+                                    style={{
+                                        flex: 1,
+                                        width: '100%',
+                                        minHeight: '40vh',
+                                        background: 'rgba(0, 0, 0, 0.3)',
+                                        border: '1px solid var(--glass-border)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        color: '#7dd3fc',
+                                        fontFamily: "'JetBrains Mono', monospace",
+                                        fontSize: '0.78rem',
+                                        padding: '1rem',
+                                        resize: 'none',
+                                        outline: 'none',
+                                        whiteSpace: 'pre',
+                                        overflow: 'auto',
+                                    }}
+                                    onClick={e => e.target.select()}
+                                />
+                            )}
+                        </div>
+                        
+                        <div style={{ padding: '0.75rem 1.5rem', borderTop: '1px solid var(--glass-border)', color: 'var(--text-muted)', fontSize: '0.75rem', textAlign: 'right' }}>
+                            Нажмите в любом месте текстового поля, чтобы выделить весь JSON.
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Preview Modal */}
             {previewPost && (

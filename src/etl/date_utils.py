@@ -16,7 +16,17 @@ def parse_telegram_date(date_str: str) -> Optional[datetime]:
     pattern = r"(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2}):(\d{2})\s+UTC([+-])(\d{2}):(\d{2})"
     match = re.match(pattern, date_str.strip())
     if not match:
-        return None
+        # Попробуем распарсить дату без суффикса таймзоны (для совместимости со старыми постами из sync)
+        simple_pattern = r"(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2}):(\d{2})"
+        match = re.match(simple_pattern, date_str.strip())
+        if not match:
+            return None
+        day, month, year = int(match.group(1)), int(match.group(2)), int(match.group(3))
+        hour, minute, second = int(match.group(4)), int(match.group(5)), int(match.group(6))
+        try:
+            return datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc)
+        except ValueError:
+            return None
 
     day, month, year = int(match.group(1)), int(match.group(2)), int(match.group(3))
     hour, minute, second = int(match.group(4)), int(match.group(5)), int(match.group(6))

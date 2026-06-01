@@ -32,6 +32,7 @@ const DigestBuilder = () => {
   const [posts, setPosts] = useState([]);
   const [excludedIds, setExcludedIds] = useState(new Set());
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [sortBy, setSortBy] = useState('date_asc');
 
   // Прошлый дайджест
   const [prevDigestLink, setPrevDigestLink] = useState('');
@@ -146,6 +147,17 @@ const DigestBuilder = () => {
     () => posts.filter(p => !excludedIds.has(p.id)),
     [posts, excludedIds]
   );
+
+  // Отсортированные посты для отображения
+  const sortedPostsForDisplay = useMemo(() => {
+    let arr = [...posts];
+    if (sortBy === 'date_asc') arr.sort((a, b) => (a.id || 0) - (b.id || 0));
+    else if (sortBy === 'date_desc') arr.sort((a, b) => (b.id || 0) - (a.id || 0));
+    else if (sortBy === 'reactions_desc') arr.sort((a, b) => (b.reactions || 0) - (a.reactions || 0));
+    else if (sortBy === 'views_desc') arr.sort((a, b) => (b.views || 0) - (a.views || 0));
+    else if (sortBy === 'forwards_desc') arr.sort((a, b) => (b.forwards || 0) - (a.forwards || 0));
+    return arr;
+  }, [posts, sortBy]);
 
   const togglePost = (id) => {
     const next = new Set(excludedIds);
@@ -275,6 +287,14 @@ const DigestBuilder = () => {
               2. Посты за период
             </h3>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', fontSize: '0.78rem' }}>
+              <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+                className="input" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', appearance: 'auto', minHeight: 'auto', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent' }}>
+                <option value="date_asc">Сначала старые</option>
+                <option value="date_desc">Сначала новые</option>
+                <option value="reactions_desc">По реакциям</option>
+                <option value="views_desc">По просмотрам</option>
+                <option value="forwards_desc">По пересылкам</option>
+              </select>
               <span style={{ color: 'var(--text-muted)' }}>
                 {includedPosts.length}/{posts.length} постов
               </span>
@@ -292,7 +312,7 @@ const DigestBuilder = () => {
                 Нет постов за выбранный период
               </div>
             ) : (
-              posts.map(post => {
+              sortedPostsForDisplay.map(post => {
                 const included = !excludedIds.has(post.id);
                 return (
                   <div key={post.id} onClick={() => togglePost(post.id)} style={{
@@ -323,6 +343,17 @@ const DigestBuilder = () => {
                         lineHeight: '1.4',
                       }}>
                         {post.text || '(медиа)'}
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.4rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Eye size={11} /> {post.views || 0}
+                        </span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Share2 size={11} /> {post.forwards || 0}
+                        </span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span style={{ fontSize: '0.7rem' }}>❤️</span> {post.reactions || 0}
+                        </span>
                       </div>
                     </div>
                   </div>

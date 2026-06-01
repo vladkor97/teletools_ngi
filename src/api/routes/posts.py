@@ -25,7 +25,7 @@ async def get_posts(
     channel_name: str = Query(..., description="Name of the channel (e.g., 'NGI_ru')"),
     sort_by: str = Query("date", enum=["date", "reactions", "views", "forwards"]),
     order: str = Query("desc", enum=["asc", "desc"]),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=5000),
     offset: int = Query(0, ge=0),
     search: Optional[str] = None
 ):

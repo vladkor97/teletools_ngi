@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, PenTool, Check, AlertCircle, Sparkles, MessageSquare, Copy, Eye, ArrowUp, ArrowDown, Settings, RefreshCw, Send } from 'lucide-react';
+import { Search, PenTool, Check, AlertCircle, Sparkles, MessageSquare, Copy, Eye, ArrowUp, ArrowDown, Settings, RefreshCw, Send, Share2 } from 'lucide-react';
 import TelegramPreview from './TelegramPreview';
 
 const AuthorToolkit = () => {
@@ -241,6 +241,16 @@ const AuthorToolkit = () => {
                             style={{ padding: '0.2rem 0.5rem', opacity: sortBy === 'reactions' ? 1 : 0.6 }}>
                             Реакции
                         </button>
+                        <button className={`btn-ghost ${sortBy === 'views' ? 'active-sort' : ''}`}
+                            onClick={() => { setSortBy('views'); setPage(1); }}
+                            style={{ padding: '0.2rem 0.5rem', opacity: sortBy === 'views' ? 1 : 0.6 }}>
+                            Просмотры
+                        </button>
+                        <button className={`btn-ghost ${sortBy === 'forwards' ? 'active-sort' : ''}`}
+                            onClick={() => { setSortBy('forwards'); setPage(1); }}
+                            style={{ padding: '0.2rem 0.5rem', opacity: sortBy === 'forwards' ? 1 : 0.6 }}>
+                            Пересылки
+                        </button>
                         <button className="btn-ghost" onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}
                             style={{ padding: '0.2rem 0.5rem' }}>
                             {order === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
@@ -287,8 +297,16 @@ const AuthorToolkit = () => {
                                             }}>
                                                 {post.text}
                                             </div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-                                                ❤️ {post.reactions}
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem', display: 'flex', gap: '0.75rem' }}>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                    <Eye size={11} /> {post.views || 0}
+                                                </span>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                    <Share2 size={11} /> {post.forwards || 0}
+                                                </span>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                    <span style={{ fontSize: '0.7rem' }}>❤️</span> {post.reactions || 0}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>

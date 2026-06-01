@@ -13,6 +13,7 @@ from pathlib import Path
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
+from datetime import timezone
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -213,15 +214,21 @@ async def fetch_new_posts(request: SyncRequest):
     try:
         # Боты не могут использовать GetHistoryRequest (min_id/limit).
         # Поэтому мы запрашиваем сообщения по конкретным ID (по 100 штук за раз).
-        current_id = max_id + 1
-        batch_size = 100
-        max_batches = 5 # до 500 новых постов за один раз
+        existing_ids = {p.get("id") for p in posts if p.get("id")}
         
-        for _ in range(max_batches):
-            ids_to_fetch = list(range(current_id, current_id + batch_size))
-            messages = await client.get_messages(entity, ids=ids_to_fetch)
+        ids_to_check = []
+        if max_id > 0:
+            start_id = max(1, max_id - 300)
+            gaps = [pid for pid in range(start_id, max_id) if pid not in existing_ids]
+            ids_to_check.extend(gaps)
+        
+        ids_to_check.extend(range(max_id + 1, max_id + 501))
+        
+        batch_size = 100
+        for i in range(0, len(ids_to_check), batch_size):
+            batch_ids = ids_to_check[i:i + batch_size]
+            messages = await client.get_messages(entity, ids=batch_ids)
             
-            valid_count = 0
             for msg in messages:
                 if msg is None or not getattr(msg, 'message', None):
                     if msg is not None and not getattr(msg, 'media', None) and not getattr(msg, 'message', None):
@@ -229,10 +236,16 @@ async def fetch_new_posts(request: SyncRequest):
                     if msg is None:
                         continue
                         
-                valid_count += 1
                 pid = msg.id
+                if pid in existing_ids:
+                    continue
+                    
                 text = getattr(msg, 'message', '') or ''
-                date_str = msg.date.strftime("%d.%m.%Y %H:%M:%S") if msg.date else ""
+                if msg.date:
+                    dt_utc = msg.date.astimezone(timezone.utc)
+                    date_str = dt_utc.strftime("%d.%m.%Y %H:%M:%S UTC+00:00")
+                else:
+                    date_str = ""
                 
                 reactions_count = 0
                 if hasattr(msg, "reactions") and msg.reactions:
@@ -254,13 +267,8 @@ async def fetch_new_posts(request: SyncRequest):
                     "forwards": forwards
                 }
                 new_posts.append(new_post)
+                existing_ids.add(pid)
             
-            # Если в целой сотне ID не нашлось ни одного валидного сообщения,
-            # скорее всего мы достигли конца канала.
-            if valid_count == 0:
-                break
-                
-            current_id += batch_size
             await asyncio.sleep(0.5) # Пауза между батчами
             
     except Exception as e:
